@@ -1,7 +1,9 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Html } from '@react-three/drei'
-import { useRef } from 'react'
+import { OrbitControls, Html, useGLTF } from '@react-three/drei'
+import * as THREE from 'three'
+import { useRef, Suspense } from 'react'
 import { SCALE_CM_PER_PX, WALL_HEIGHT_CM, WALL_THICKNESS_CM, SLAB_THICKNESS_CM } from '../utils/constants'
+import { getAllWallSegments } from '../utils/walls'
 
 function Floor({ x, y, w, h }) {
   const sx = (w * SCALE_CM_PER_PX) / 100
@@ -44,11 +46,73 @@ function FurnitureBox({ x, y, w, h, color }) {
   const heightM = 0.5 // 50 cm por defecto
   const px = (x + w / 2) * SCALE_CM_PER_PX / 100
   const pz = (y + h / 2) * SCALE_CM_PER_PX / 100
+  const offsetYcm = 0 // se aplicará en render principal para no elevar módulos
   return (
-    <mesh position={[px, heightM / 2, pz]}>
+    <mesh position={[px, heightM / 2 + offsetYcm / 100, pz]}>
       <boxGeometry args={[sx, heightM, sz]} />
       <meshStandardMaterial color={color || '#aaaaaa'} />
     </mesh>
+  )
+}
+
+function Chair({ x, y, w, h, color }) {
+  const seatHeightM = 0.45
+  const backHeightM = 0.9
+  const seatThicknessM = 0.05
+  const legThicknessM = 0.03
+  const sx = (w * SCALE_CM_PER_PX) / 100
+  const sz = (h * SCALE_CM_PER_PX) / 100
+  const px = (x + w / 2) * SCALE_CM_PER_PX / 100
+  const pz = (y + h / 2) * SCALE_CM_PER_PX / 100
+  const materialColor = color || '#aaaaaa'
+  return (
+    <group position={[px, 0, pz]}>
+      <mesh position={[0, seatHeightM, 0]}>
+        <boxGeometry args={[sx, seatThicknessM, sz]} />
+        <meshStandardMaterial color={materialColor} />
+      </mesh>
+      <mesh position={[0, (backHeightM + seatHeightM) / 2, -sz / 2 + legThicknessM / 2]}>
+        <boxGeometry args={[sx, backHeightM - seatHeightM, legThicknessM]} />
+        <meshStandardMaterial color={materialColor} />
+      </mesh>
+      {[
+        [-sx / 2 + legThicknessM / 2, seatHeightM / 2, -sz / 2 + legThicknessM / 2],
+        [sx / 2 - legThicknessM / 2, seatHeightM / 2, -sz / 2 + legThicknessM / 2],
+        [-sx / 2 + legThicknessM / 2, seatHeightM / 2, sz / 2 - legThicknessM / 2],
+        [sx / 2 - legThicknessM / 2, seatHeightM / 2, sz / 2 - legThicknessM / 2],
+      ].map((p, i) => (
+        <mesh key={i} position={p}>
+          <boxGeometry args={[legThicknessM, seatHeightM, legThicknessM]} />
+          <meshStandardMaterial color={materialColor} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function CustomModel({ el }) {
+  const url = el.model3d?.url
+  const scale = el.model3d?.scale ?? 1
+  const rotY = (el.model3d?.rotationY ?? 0) * Math.PI / 180
+  const px = (el.x + el.w / 2) * SCALE_CM_PER_PX / 100
+  const pz = (el.y + el.h / 2) * SCALE_CM_PER_PX / 100
+  const gltf = useGLTF(url || '', true)
+  // Calcular bounding box para escalado por huella y altura
+  const bbox = new THREE.Box3().setFromObject(gltf.scene)
+  const size = new THREE.Vector3()
+  bbox.getSize(size)
+  const targetX = (el.w * SCALE_CM_PER_PX) / 100
+  const targetZ = (el.h * SCALE_CM_PER_PX) / 100
+  const fit = el.model3d?.fitFootprint ?? true
+  const targetY = el.model3d?.heightCm ? (el.model3d.heightCm / 100) : size.y * scale
+  const sx = fit && size.x > 0 ? (targetX / size.x) * scale : scale
+  const sz = fit && size.z > 0 ? (targetZ / size.z) * scale : scale
+  const sy = el.model3d?.heightCm && size.y > 0 ? (targetY / size.y) : scale
+  const offsetY = (el.model3d?.offsetY ?? 0) / 100
+  return (
+    <group position={[px, offsetY, pz]} rotation={[0, rotY, 0]} scale={[sx, sy, sz]}>
+      <primitive object={gltf.scene} />
+    </group>
   )
 }
 
@@ -95,30 +159,52 @@ export default function Scene3D({ elements }) {
       <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} />
-        {elements.map((el) => (
-          <group key={el.id}>
-            {el.type === 'module' ? (
-              <>
-                <Floor x={el.x} y={el.y} w={el.w} h={el.h} />
-                {/* Paredes según toggles */}
-                {el.wallN && (
-                  <Wall x1={el.x} y1={el.y} x2={el.x + el.w} y2={el.y} />
-                )}
-                {el.wallS && (
-                  <Wall x1={el.x} y1={el.y + el.h} x2={el.x + el.w} y2={el.y + el.h} />
-                )}
-                {el.wallE && (
-                  <Wall x1={el.x + el.w} y1={el.y} x2={el.x + el.w} y2={el.y + el.h} />
-                )}
-                {el.wallW && (
-                  <Wall x1={el.x} y1={el.y} x2={el.x} y2={el.y + el.h} />
-                )}
-              </>
-            ) : (
-              <FurnitureBox x={el.x} y={el.y} w={el.w} h={el.h} color={el.color} />
-            )}
-          </group>
-        ))}
+        <Suspense fallback={null}>
+          {elements.map((el) => (
+            <group key={el.id}>
+              {el.type === 'module' ? (
+                <>
+                  <Floor x={el.x} y={el.y} w={el.w} h={el.h} />
+                  {/* Paredes según porcentaje/offset */}
+                  {getAllWallSegments(el).map((s, idx) => (
+                    <Wall key={idx} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} />
+                  ))}
+                </>
+              ) : (
+                el.model3d?.type && el.model3d.type !== 'default' && el.model3d?.url ? (
+                  <CustomModel el={el} />
+                ) : el.type === 'chair' ? (
+                  // aplicar offsetY también a procedural
+                  (() => {
+                    const oy = (el.model3d?.offsetY ?? 0) / 100
+                    const px = (el.x + el.w / 2) * SCALE_CM_PER_PX / 100
+                    const pz = (el.y + el.h / 2) * SCALE_CM_PER_PX / 100
+                    return (
+                      <group position={[px, oy, pz]}>
+                        <Chair x={el.x} y={el.y} w={el.w} h={el.h} color={el.color} />
+                      </group>
+                    )
+                  })()
+                ) : (
+                  (() => {
+                    const oy = (el.model3d?.offsetY ?? 0) / 100
+                    const sx = (el.w * SCALE_CM_PER_PX) / 100
+                    const sz = (el.h * SCALE_CM_PER_PX) / 100
+                    const heightM = 0.5
+                    const px = (el.x + el.w / 2) * SCALE_CM_PER_PX / 100
+                    const pz = (el.y + el.h / 2) * SCALE_CM_PER_PX / 100
+                    return (
+                      <mesh position={[px, heightM / 2 + oy, pz]}>
+                        <boxGeometry args={[sx, heightM, sz]} />
+                        <meshStandardMaterial color={el.color || '#aaaaaa'} />
+                      </mesh>
+                    )
+                  })()
+                )
+              )}
+            </group>
+          ))}
+        </Suspense>
         <CameraUI />
       </Canvas>
     </div>

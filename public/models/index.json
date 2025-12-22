@@ -1,0 +1,10 @@
+[
+  { "id": "silla", "label": "Silla", "url": "/models/silla.glb", "footprintCm": { "w": 45, "h": 50 }, "heightCm": 90 },
+  { "id": "sofa", "label": "Sofá", "url": "/models/sofa.glb", "footprintCm": { "w": 200, "h": 90 }, "heightCm": 85 },
+  { "id": "sofa-3p", "label": "Sofá 3 personas", "url": "/models/sofa 3 personas.glb", "footprintCm": { "w": 220, "h": 95 }, "heightCm": 90 },
+  { "id": "sofa-cojines", "label": "Sofá cojines", "url": "/models/sofa cojines.glb", "footprintCm": { "w": 210, "h": 95 }, "heightCm": 90 },
+  { "id": "sofa-unitario", "label": "Sofá unitario", "url": "/models/sofa unitario.glb", "footprintCm": { "w": 100, "h": 90 }, "heightCm": 85 },
+  { "id": "cajonera", "label": "Cajonera", "url": "/models/cajonera.glb", "footprintCm": { "w": 80, "h": 45 }, "heightCm": 100 },
+  { "id": "armario", "label": "Armario", "url": "/models/armario.glb", "footprintCm": { "w": 180, "h": 60 }, "heightCm": 220 },
+  { "id": "mesa", "label": "Mesa", "url": "/models/mesa.glb", "footprintCm": { "w": 150, "h": 80 }, "heightCm": 75 }
+]

@@ -33,3 +33,6 @@ body { margin: 0; font-family: Inter, system-ui, Arial, sans-serif; }
 .camera-ui button { background: rgba(255,255,255,0.9); border: 1px solid var(--border); padding: 6px 10px; }
 
 .statusbar { padding: 6px 12px; border-top: 1px solid var(--border); background: white; font-size: 12px; color: #666; }
+.panel > h3{
+color: #333;
+}
